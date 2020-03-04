@@ -1,0 +1,13 @@
+# https://stackoverflow.com/a/5534865/377238
+
+/*
+!.gitignore
+!wp-config-pxg-sample.php
+
+!wp-content
+wp-content/*
+!wp-content/plugins
+wp-content/plugins/*
+!wp-content/plugins/theelega*
+
+wp-content/plugins/theelega_common
