@@ -4,7 +4,8 @@ class THEELEGA_PXG_Product
     public $ID = '';
     public $SKU = '';
     public $title = '';
-    public $brand = '';    
+    public $brand = '';
+    public $brand_for_product_name = '';
     public $supplier = '';
     public $short_desc = '';
     public $long_desc = '';
@@ -28,36 +29,52 @@ class THEELEGA_PXG_Product
 
     //Validation errors.
     public $errors = [];
+    public $warnings = [];
 
     public $ready_for_export = '0';
     public $exported = '1';
+    public $export_despite_errors = false;
 
     public $image = '';
+    public $gallery_images = [];
 
-    public static function get_all($ready_only, $unexported_only, $suppliers)
+    /** @return THEELEGA_PXG_Product[] */
+    public static function get_all($ready, $exported, $suppliers)
     {
         $db = THEELEGA_PXG_db::get();
         $main_db = THEELEGA_PXG_main_server_db::get();
 
-        $products = $db->get_products($ready_only, $unexported_only, $suppliers);
+        $products = [];
+        $suppliers_with_products = $main_db->get_suppliers_with_products($ready, $exported);
+        if (!$suppliers)
+        {
+            $suppliers = array_keys($suppliers_with_products);
+        }
+        foreach ($suppliers as $s)
+        {
+            $products = array_merge($products, theelega_arr_get($suppliers_with_products, $s, []));
+        }
+
         $pids = array_column($products, 'ID');
         $meta = $db->get_product_meta($pids);
         $taxonomies = $db->get_product_taxonomies($pids);
         $ms_taxonomies = $main_db->get_taxonomies();
         $ms_woo_attributes = $main_db->get_woo_attributes();
+        $ms_suppliers = $main_db->get_suppliers();
         $supplier_brand_mapping = get_option(THEELEGA_PXG_form_supplier_brand_mapping::$option_name);
         $brands = theelega_arr_get($main_db->get_taxonomies(), 'pa_brand', []);
         
-        $products = array_map(function($p) use ($meta, $taxonomies, $ms_taxonomies, $ms_woo_attributes, $supplier_brand_mapping, $brands)
+        $ms_categories = theelega_arr_get($ms_taxonomies, 'product_cat');
+        $ms_category_tree = theelega_build_category_tree($ms_categories);
+        
+        $products = array_map(function($p) use ($meta, $taxonomies, $ms_taxonomies, $ms_woo_attributes, $ms_suppliers, $supplier_brand_mapping, $brands, $ms_category_tree)
         {
-            $get = 'theelega_arr_get';
-
             $ret = new self($p);
             $ret->set_postmeta($meta[$ret->ID]);
             $ret->set_taxonomies($taxonomies[$ret->ID]);
             $ret->set_brand($supplier_brand_mapping, $brands);
-            $ret->create_category_chains();
-            $ret->validate($ms_taxonomies, $ms_woo_attributes);
+            $ret->create_category_chains($ms_category_tree);
+            $ret->validate($ms_taxonomies, $ms_woo_attributes, $ms_category_tree, $ms_suppliers);
 
             return $ret;
         },$products);
@@ -99,6 +116,12 @@ class THEELEGA_PXG_Product
         $this->image = $get($meta, '_thumbnail_id', '0');
         $this->image = wp_get_attachment_url($this->image);
 
+        $this->gallery_images = $get($meta, '_product_image_gallery', '');
+        $this->gallery_images = array_map('wp_get_attachment_url', explode(',', $this->gallery_images));
+        $this->gallery_images = theelega_remove_falsy($this->gallery_images);
+
+        $this->export_despite_errors = $get($meta, 'export_despite_errors', '');
+
         foreach ($meta as $key => $val)
         {
             if (preg_match('/^other_attribute_\d+_name$/', $key))
@@ -135,9 +158,11 @@ class THEELEGA_PXG_Product
     private function set_brand($supplier_brand_mapping, $brands)
     {
         $get = 'theelega_arr_get';
-        $b = $get($supplier_brand_mapping, $this->supplier, '');
+        $b = $get($supplier_brand_mapping, [$this->supplier, 'brand'], '');
         $b = $get($brands, $b, '');
         $this->brand = $get($b, 'name', '');
+
+        $this->brand_for_product_name = $get($supplier_brand_mapping, [$this->supplier, 'brand_for_product_name'], '');
     }
     
     private function try_set_variation_property($meta_key, $value)
@@ -217,7 +242,7 @@ class THEELEGA_PXG_Product
         }
     }
 
-    private function validate($ms_taxonomies, $ms_woo_attributes)
+    private function validate($ms_taxonomies, $ms_woo_attributes, $ms_category_tree, $ms_suppliers)
     {
         $get = 'theelega_arr_get';
         
@@ -235,55 +260,100 @@ class THEELEGA_PXG_Product
             }
         }
 
-        $cats = $get($ms_taxonomies,'product_cat', []);
+        if (!$this->category_chains)
+        {
+            $this->errors[] = "Product has no categories.";
+        }
+
         foreach ($this->categories as $cat)
         {
-            if (!$cats[$cat['slug']])
+            $cat = $cat['slug'];
+            $c = $get($ms_category_tree['slugs'], $cat);
+            if (!$c)
             {
-                $this->errors[] = "Category {$cat['label']} does not exist on the main server.";
+                $this->errors[] = "Category {$cat} does not exist on the main server.";
             }
-        }
-        
-        $tags = $get($ms_taxonomies,'product_tag', []);
-        foreach ($this->tags as $tag)
-        {
-            if (!$tags[$tag['slug']])
+            elseif ($c->descendents && isset($this->category_chains[$c->slug]))
             {
-                $this->errors[] = "Tag {$tag['label']} does not exist on the main server.";
+                $this->errors[] = "Category {$cat} has descendents. Only leaf categories are allowed.";
             }
         }
 
-        if ($this->color_attribute_slug && !isset($ms_woo_attributes['color'][$this->color_attribute_slug]))
+        if (!$this->color_attribute_slug)
+        {
+            if (count($variation_colors))
+            {
+                $this->errors[] = "There are variations with colors, but a color attribute tag is not given.";
+            }
+            else
+            {
+                $this->warnings[] = 'Colors have not been set up.';
+            }
+        }
+        elseif (!isset($ms_woo_attributes[$this->color_attribute_slug]))
         {
             $this->errors[] = "Color attribute slug {$this->color_attribute_slug} does not exist on the main server.";
         }
-
-        if (!!$this->color_attribute_slug !== !!count($variation_colors))
+        elseif (!theelega_string_contains($this->color_attribute_slug, 'color'))
         {
-            $this->errors[] = "If variation attribute slug is set, there must be colors, and vice versa.";
+            $this->errors[] = "Color attribute slug {$this->color_attribute_slug} does not contain the word 'color'.";
+        }
+        elseif (!count($variation_colors))
+        {
+            $this->errors[] = "If color attribute slug is set, there must be colors, and vice versa.";
         }
 
-        if ($this->size_attribute_slug && !isset($ms_woo_attributes['size'][$this->size_attribute_slug]))
+        if (!$this->size_attribute_slug)
+        {
+            if ($this->sizes)
+            {
+                $this->errors[] = "Sizes are given, but a size attribute tag is not.";
+            }
+            else
+            {
+                $this->warnings[] = 'Sizes have not been set up.';
+            }
+        }
+        elseif (!isset($ms_woo_attributes[$this->size_attribute_slug]))
         {
             $this->errors[] = "Size attribute slug {$this->size_attribute_slug} does not exist on the main server.";
         }
-
-        if (!!$this->size_attribute_slug !== !!$this->sizes)
+        elseif (!theelega_string_contains($this->size_attribute_slug, 'size'))
+        {
+            $this->errors[] = "Size attribute slug {$this->color_attribute_slug} does not contain the word 'size'.";
+        }
+        elseif (!$this->sizes)
         {
             $this->errors[] = "If size attribute slug is set, sizes must be given, and vice versa.";
         }
 
-        if (!$this->brand)
+        foreach ($this->other_attributes as $attr => $values)
         {
-            $this->errors[] = "Brand is required.";
-        }
+            //Search for $attr in both the keys (slugs) and values (labels)
+            if (!isset($ms_woo_attributes[$attr]) && !in_array($attr, $ms_woo_attributes))
+            {
+                $this->errors[] = "'Other' attribute '$attr' does not exist on the main server.";
+            }
+            elseif (!$values)
+            {
+                $this->errors[] = "No values are given for 'other' attribute '$attr'.";
+            }
+        } 
 
         if (!$this->supplier)
         {
             $this->errors[] = "Supplier is required.";
         }
+        elseif (!in_array($this->supplier, $ms_suppliers))
+        {
+            $this->errors[] = "Supplier {$this->supplier} does not exist on the main server.";
+        }
+        elseif (!$this->brand)
+        {
+            $this->errors[] = "Brand is required. Check the 'Configure mappings between suppliers and brands' tool to see if the mapping is correct.";
+        }
 
-        if (!$this->price || $this->price < 0)
+        if (!(floatval($this->price) > 0))
         {
             $this->errors[] = "Price must be a positive number.";
         }
@@ -293,23 +363,14 @@ class THEELEGA_PXG_Product
         A category chain is a category from $categories above, plus its ancestors.
         Ancestors are listed from top-level to current category, and separated with the characters " > ".
     */
-    private function create_category_chains()
+    private function create_category_chains($ms_category_tree)
     {
         $get = 'theelega_arr_get';
-        
-        static $category_tree;
-        if (!$category_tree)
-        {
-            $main_db = THEELEGA_PXG_main_server_db::get();
-            $taxs = $main_db->get_taxonomies();
-            $cats = $get($taxs, 'product_cat');
-            $category_tree = theelega_build_category_tree($cats);
-        }
         
         $chains = [];
         foreach ($this->categories as $c)
         {
-            $c = $get($category_tree['slugs'], $c['slug']);
+            $c = $get($ms_category_tree['slugs'], $c['slug']);
             if (!$c)
             {
                 continue;
@@ -319,11 +380,11 @@ class THEELEGA_PXG_Product
             $as = array_reverse($as);
             $as[] = $c->slug;
             
-            $chains[] = implode(' > ', $as);
+            $chains[$c->slug] = implode(' > ', $as);
         }
 
-        //If a chain is the prefix of another chain, get rid of it. The product will be added to those categories anyway.
-        //Meanwhile, they create clutter.
+        //If a chain is the prefix of another chain, get rid of it. We really only need categories that
+        //are leaves - that is, have no descendents. (validate() checks that.)
         foreach ($chains as $cc)
         {
             foreach (array_keys($chains) as $key)
@@ -336,7 +397,7 @@ class THEELEGA_PXG_Product
             }
         }
 
-        $this->category_chains = array_values($chains);
+        $this->category_chains = $chains;
     }
 }
 

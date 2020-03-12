@@ -9,10 +9,10 @@ class THEELEGA_PXG_xml
         $suppliers = stripslashes($suppliers);
         $suppliers = json_decode($suppliers, true);
 
-        $products = THEELEGA_PXG_Product::get_all(true, true, $suppliers);
+        $products = THEELEGA_PXG_Product::get_all(true, false, $suppliers);
         $products = array_filter($products, function($p)
         {
-            return empty($p->errors);
+            return empty($p->errors) || $p->export_despite_errors;
         });
 
         $txe = new THEELEGA_XMLElement('Products');
@@ -21,7 +21,7 @@ class THEELEGA_PXG_xml
         $mark = theelega_request_field('THEELEGA_PXG_mark_exported');
         if ($mark)
         {
-            $db->mark_products($products);
+            $db->mark_products_exported($products);
         } 
 
         self::print_headers('Products.xml');
@@ -47,7 +47,7 @@ class THEELEGA_PXG_xml
         $ret->addElement('SKU', $p->SKU);
         $ret->addElement('Product_Name', $p->title);
         $ret->addElement('Short_Description', $p->short_desc);
-        $ret->addElement('Brand_Name', $p->brand);
+        $ret->addElement('Brand_Name', $p->brand_for_product_name);
         $ret->addElement('Price', $p->price);
         $ret->addElement(self::supplier_xml($p));
         $ret->addElement(self::categories_xml($p));
@@ -110,6 +110,13 @@ class THEELEGA_PXG_xml
         $gi->addElement('Gallery_Image', $p->image);
         $it->addElement('Image_Title', $img_name);
 
+        foreach ($p->gallery_images as $gi2)
+        {
+            $img_name = strtoupper($p->brand) . ' - ' . $p->title . ' - Gallery Image';
+            $gi->addElement('Gallery_Image', $gi2);
+            $it->addElement('Image_Title', $img_name);
+        }
+
         foreach ($p->variations as $v)
         {
             $img_name = strtoupper($p->brand) . ' ' . $p->title . ' - ' . $v->color;
@@ -132,8 +139,8 @@ class THEELEGA_PXG_xml
         $attrs = [];
         
         $attrs['Brand'] = $p->brand;
-        $attrs[$p->color_attribute_slug] = implode(', ', wp_list_pluck($p->variations, 'color'));
         $attrs[$p->size_attribute_slug] = $p->sizes;
+        $attrs[$p->color_attribute_slug] = implode(', ', wp_list_pluck($p->variations, 'color'));
         $attrs = array_merge($attrs, $p->other_attributes);
 
         $ret = new THEELEGA_XMLElement('Attributes');

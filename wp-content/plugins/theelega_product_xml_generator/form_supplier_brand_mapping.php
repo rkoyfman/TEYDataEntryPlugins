@@ -25,10 +25,10 @@ class THEELEGA_PXG_form_supplier_brand_mapping
         $this->print_js();
         
         echo "<table class='{$option_name}_tbl'>";
-        echo "<tr><th>Supplier</th><th>Brand</th></tr>";
+        echo "<tr><th>Supplier</th><th>Brand</th><th>Brand for Product Name</th></tr>";
         foreach ($suppliers as $s)
         {
-            $sname = esc_html($s['label']);
+            $sname = esc_html($s);
 
             echo "<tr class='{$option_name}_tr' supplier_name='$sname'>";
             echo "<td>$sname</td>";
@@ -39,12 +39,18 @@ class THEELEGA_PXG_form_supplier_brand_mapping
             {
                 $bslug = esc_attr($b['slug']);
                 $bname = esc_html($b['name']);
-                $selected = $get($option, $sname, '') == $bslug ? 'selected' : '';
+                $selected = $get($option, [$sname, 'brand'], '') == $bslug ? 'selected' : '';
                 echo "<option value='$bslug' $selected>$bname</option>";
             }
             echo "</select>";
             
             echo "</td>";
+            echo "<td>";
+            $brand_for_product_name = $get($option, [$sname, 'brand_for_product_name'], '');
+            $brand_for_product_name = esc_attr($brand_for_product_name);
+            echo "<input type='text' name='{$option_name}_brand_for_product_name' value='$brand_for_product_name'/>";
+            echo "</td>";
+
             echo "</tr>";
         }
         
@@ -70,9 +76,11 @@ class THEELEGA_PXG_form_supplier_brand_mapping
                 {
                     tr = $(tr);
                     var s = tr.attr('supplier_name');
-                    var b = tr.find('[name=' + prefix + '_brand]').val();
+                    var val = {};
+                    val.brand = tr.find('[name=' + prefix + '_brand]').val();
+                    val.brand_for_product_name = tr.find('[name=' + prefix + '_brand_for_product_name]').val();
 
-                    mappings[s] = b;
+                    mappings[s] = val;
                 });
                 
                 THEELEGA_common_post(url, nonce, prefix, mappings, $('.' + prefix + '_status'));

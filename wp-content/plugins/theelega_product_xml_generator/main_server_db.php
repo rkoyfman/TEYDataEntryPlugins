@@ -48,22 +48,15 @@ class THEELEGA_PXG_main_server_db extends THEELEGA_db
 
     public function get_woo_attributes()
     {
-        $sql = "SELECT attribute_name, 'color' AS tag
-        FROM {$this->prefix}woocommerce_attribute_taxonomies
-        WHERE attribute_name LIKE '%color%'
-        UNION
-        SELECT attribute_name, 'size' AS tag
-        FROM {$this->prefix}woocommerce_attribute_taxonomies
-        WHERE attribute_name LIKE '%size%'";
+        $sql = "SELECT attribute_name, attribute_label
+        FROM {$this->prefix}woocommerce_attribute_taxonomies";
 
         $res = $this->get_results($sql);
 
         $ret = [];
         foreach ($res as $row)
         {
-            $tag = $row['tag'];
-            $an = $row['attribute_name'];
-            $ret[$tag][$an] = true;
+            $ret[$row['attribute_name']] = $row['attribute_label'];
         }
 
         return $ret;
@@ -71,14 +64,51 @@ class THEELEGA_PXG_main_server_db extends THEELEGA_db
 
     public function get_suppliers()
     {
-        $sql = "SELECT p.ID, p.post_name AS slug, p.post_title AS label
+        $sql = "SELECT p.post_title
         FROM {$this->prefix}posts p
         WHERE p.post_status = 'publish'
             AND p.post_type like 'ft_supplier'
         ORDER BY p.post_title";
 
-        $ret = $this->get_results($sql);
+        $ret = $this->get_col($sql);
+        return $ret;
+    }
 
+    public function get_suppliers_with_products($ready, $exported)
+    {
+        $suppliers = $this->get_suppliers();
+
+        $ret = [];
+        $ret['No supplier'] = [];
+        $ret['Invalid supplier'] = [];
+        foreach ($suppliers as $s)
+        {
+            $ret[$s] = [];
+        }
+        
+        $db = THEELEGA_PXG_db::get();
+        $products = $db->get_products($ready, $exported, null);
+
+        foreach ($products as $p)
+        {
+            $supplier = $p['supplier'];
+            $supplier = trim($supplier);
+
+            if (isset($ret[$supplier]))
+            {
+                $ret[$supplier][] = $p;
+            }
+            elseif (!$supplier)
+            {
+                $ret['No supplier'][] = $p;
+            }
+            else
+            {
+                $ret['Invalid supplier'][] = $p;
+            }
+        }
+
+        $ret = theelega_remove_falsy($ret);
         return $ret;
     }
 }

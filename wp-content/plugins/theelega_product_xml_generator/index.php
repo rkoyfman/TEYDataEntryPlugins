@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TheElegantYou Product XML Generator For Data Entry
  * Description: For use on the Data Entry site. Allows an administrator to download products as XML.
- * Version:     1.0
+ * Version:     1.1
  * Author:      Roman Koyfman
  */
 
@@ -31,7 +31,9 @@ add_action('theelega_startup', function()
     require_once 'xml.php';
     
     require_once 'form.php';
-    require_once 'form_preview_table.php';
+    require_once 'form_table_base.php';
+    require_once 'form_table_preview.php';
+    require_once 'form_table_delete.php';
     require_once 'form_supplier_brand_mapping.php';
 
     new THEELEGA_PXG_form();
