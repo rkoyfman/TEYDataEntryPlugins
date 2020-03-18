@@ -154,6 +154,18 @@ class THEELEGA_PXG_db extends THEELEGA_db
         return $ret;
     }
 
+    public function get_categories()
+    {
+        $sql = "SELECT t.*, tt.*
+        FROM {$this->prefix}terms t
+        INNER JOIN {$this->prefix}term_taxonomy tt
+            ON t.term_id = tt.term_id
+        WHERE tt.taxonomy = 'product_cat'";
+
+        $ret = $this->get_results($sql);
+        return $ret;
+    }
+
     public function update_posts($updates)
     {
         $products = array_keys($updates);

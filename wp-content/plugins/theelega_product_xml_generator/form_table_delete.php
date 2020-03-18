@@ -1,6 +1,4 @@
 <?php
-require_once 'form_table_base.php';
-
 class THEELEGA_PXG_form_table_delete extends THEELEGA_PXG_form_table_base
 {
     public function get_products()

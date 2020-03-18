@@ -29,6 +29,11 @@ class THEELEGA_PXG_form
             $obj = new THEELEGA_PXG_form_table_delete();
             $this->page_handler = [$obj, 'html'];
         }
+        elseif (theelega_request_field('THEELEGA_PXG_upload_categories'))
+        {
+            $obj = new THEELEGA_PXG_form_upload_categories();
+            $this->page_handler = [$obj, 'html'];
+        }
     }
     
     public function admin_menu()
@@ -97,6 +102,8 @@ class THEELEGA_PXG_form
             {
                 ?>
                 <input type='submit' name='THEELEGA_PXG_form_supplier_brand_mapping' value='Configure mappings between suppliers and brands' />
+                <br/>
+                <input type='submit' name='THEELEGA_PXG_upload_categories' value='Upload categories' />
                 <?php
             });
 
