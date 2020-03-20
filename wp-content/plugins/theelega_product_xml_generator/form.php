@@ -71,7 +71,7 @@ class THEELEGA_PXG_form
             {
                 ?>
                 <div>
-                    <?php $this->print_supplier_selector(); ?>
+                    <?php $this->print_supplier_selector(null, null); ?>
                 </div>
                 <div>
                     <input type='checkbox' name='THEELEGA_PXG_ready_only'/>
@@ -89,7 +89,7 @@ class THEELEGA_PXG_form
             $this->create_form_tr(function()
             {
                 ?>
-                <?php $this->print_supplier_selector(); ?>
+                <?php $this->print_supplier_selector(true, false); ?>
                 <div>
                     <input type='checkbox' name='THEELEGA_PXG_mark_exported'/>
                     Check to mark products as exported. They will be excluded from future downloads.
@@ -132,17 +132,10 @@ class THEELEGA_PXG_form
         <?php
     }
 
-    private function print_supplier_selector()
+    private function print_supplier_selector($ready, $exported)
     {
-        static $output;
-        if ($output)
-        {
-            echo $output;
-            return;
-        }
-
         $main_db = THEELEGA_PXG_main_server_db::get();
-        $suppliers = $main_db->get_suppliers_with_products(null, null);
+        $suppliers = $main_db->get_suppliers_with_products($ready, $exported);
         $output = [];
 
         $output[] = "Filter by supplier:
