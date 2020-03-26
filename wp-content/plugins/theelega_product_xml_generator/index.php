@@ -31,12 +31,16 @@ add_action('theelega_startup', function()
     require_once 'xml.php';
     
     require_once 'form.php';
+    require_once 'form_mens_shirt_sizes.php';
     require_once 'form_table_base.php';
     require_once 'form_table_preview.php';
     require_once 'form_table_delete.php';
     require_once 'form_supplier_brand_mapping.php';
     require_once 'form_upload_categories.php';
+    require_once 'form_mens_shirt_sizes.php';
 
+    require_once 'product_table_columns.php';
+    
     new THEELEGA_PXG_form();
 });
 ?>

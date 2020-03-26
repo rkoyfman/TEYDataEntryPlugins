@@ -38,6 +38,8 @@ class THEELEGA_PXG_Product
     public $image = '';
     public $gallery_images = [];
 
+    public $men_shirt_sizes = [];
+
     /** @return THEELEGA_PXG_Product[] */
     public static function get_all($ready, $exported, $suppliers)
     {
@@ -119,6 +121,9 @@ class THEELEGA_PXG_Product
         $this->gallery_images = $get($meta, '_product_image_gallery', '');
         $this->gallery_images = array_map('wp_get_attachment_url', explode(',', $this->gallery_images));
         $this->gallery_images = theelega_remove_falsy($this->gallery_images);
+        
+        $this->men_shirt_sizes = $get($meta, 'men_shirt_sizes', '');
+        $this->men_shirt_sizes = maybe_unserialize($this->men_shirt_sizes);
 
         $this->export_despite_errors = $get($meta, 'export_despite_errors', '');
 
@@ -436,7 +441,7 @@ class THEELEGA_PXG_Product_Variation
 
         $ret = implode("\n", $ret);
         //Split by whitespace, comma, or pipe.
-        $ret = preg_split('/(\s|,|\|)+/', $ret);
+        $ret = preg_split('/(\s|,|\|)+/', $ret, -1, PREG_SPLIT_NO_EMPTY);
         
         return $ret;
     }

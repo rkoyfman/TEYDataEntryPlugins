@@ -164,11 +164,27 @@ class THEELEGA_PXG_xml
     {
         $ret = new THEELEGA_XMLElement('Variations');
 
-        foreach ($p->variations as $v)
+        $color_variations = $p->variations;
+        $size_variations = $p->men_shirt_sizes;
+
+        if (!$color_variations && !$size_variations)
         {
-            foreach ($v->get_image_urls() as $u)
+            return $ret;
+        }
+        else if (!$color_variations)
+        {
+            $color_variations = [new THEELEGA_PXG_Product_Variation()];
+        }
+        else if (!$size_variations)
+        {
+            $size_variations = [null];
+        }
+        
+        foreach ($color_variations as $v)
+        {
+            foreach ($size_variations as $sv)
             {
-                $ret->addElement(self::variant_xml($p, $v, $u));
+                $ret->addElement(self::variant_xml($p, $v, $sv));
             }
         }
 
@@ -178,20 +194,31 @@ class THEELEGA_PXG_xml
     /**
      * @param THEELEGA_PXG_Product $p
      * @param THEELEGA_PXG_Product_Variation $p
-     * @param string $u
+     * @param array $sv
      * @return THEELEGA_XMLElement
     */
-    private static function variant_xml($p, $v, $u)
+    private static function variant_xml($p, $v, $sv)
     {
         $get = 'theelega_arr_get';
         $ret = new THEELEGA_XMLElement('variant');
-        $attrs = array_slice(range(0, 10), 1, null, true);
+        $attrs = array_slice(array_fill(0, 11, null), 1, null, true);
         
         $attrs[1] = ['Attr_SKU', $v->sku_combined];
         $attrs[2] = ['Brand', $p->brand];
         $attrs[3] = [$p->color_attribute_slug, $v->color];
         $attrs[7] = ['Attr_RegPrice', $p->price];
-        $attrs[10] = ['Attr_Image', $u];
+        $attrs[9] = ['Attr_Image', implode(",\n", $v->get_image_urls())];
+
+        if ($sv)
+        {
+            $attrs[4] = ['men-shirt-size', theelega_arr_get($sv, 'collar_size')];
+            $attrs[5] = ['men-shirt-sleeve', theelega_arr_get($sv, 'sleeve_size')];
+
+            if ($attrs[1])
+            {
+                $attrs[1][1] .= "-collar{$attrs[4][1]}-sleeve{$attrs[5][1]}";
+            }
+        }
         
         foreach ($attrs as $a)
         {

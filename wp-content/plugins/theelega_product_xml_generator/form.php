@@ -19,6 +19,11 @@ class THEELEGA_PXG_form
             $obj = new THEELEGA_PXG_form_table_preview();
             $this->page_handler = [$obj, 'html'];
         }
+        elseif (theelega_request_field('THEELEGA_PXG_form_mens_shirt_sizes'))
+        {
+            $obj = new THEELEGA_PXG_form_mens_shirt_sizes();
+            $this->page_handler = [$obj, 'html'];
+        }
         elseif (theelega_request_field('THEELEGA_PXG_form_supplier_brand_mapping'))
         {
             $obj = new THEELEGA_PXG_form_supplier_brand_mapping();
@@ -67,12 +72,14 @@ class THEELEGA_PXG_form
 
         <table style='border-spacing: 10px;'>
             <?php
-            $this->create_form_tr(function()
+            echo '<tr>';
+            $this->create_form_td(1, function()
             {
                 ?>
                 <div>
                     <?php $this->print_supplier_selector(null, null); ?>
                 </div>
+                
                 <div>
                     <input type='checkbox' name='THEELEGA_PXG_ready_only'/>
                     Only show products that are ready for export.
@@ -81,12 +88,25 @@ class THEELEGA_PXG_form
                     <input type='checkbox' name='THEELEGA_PXG_unexported_only'/>
                     Only show unexported products.
                 </div>
-                
+
                 <input type='submit' name='THEELEGA_PXG_form_table_preview' value='Preview products' />
                 <?php
             });
+            $this->create_form_td(1, function()
+            {
+                ?>
+                <div>
+                    <?php $this->print_supplier_selector(true, false); ?>
+                </div>
+                
+                <input type='submit' name='THEELEGA_PXG_form_mens_shirt_sizes' value="Set up mens' shirt sizes" />
+                <?php
+            });
             
-            $this->create_form_tr(function()
+            echo '</tr>';
+            echo '<tr>';
+            
+            $this->create_form_td(2, function()
             {
                 ?>
                 <?php $this->print_supplier_selector(true, false); ?>
@@ -98,7 +118,10 @@ class THEELEGA_PXG_form
                 <?php
             });
 
-            $this->create_form_tr(function()
+            echo '</tr>';
+            echo '<tr>';
+
+            $this->create_form_td(2, function()
             {
                 ?>
                 <input type='submit' name='THEELEGA_PXG_form_supplier_brand_mapping' value='Configure mappings between suppliers and brands' />
@@ -107,28 +130,30 @@ class THEELEGA_PXG_form
                 <?php
             });
 
-            $this->create_form_tr(function()
+            echo '</tr>';
+            echo '<tr>';
+            
+            $this->create_form_td(2, function()
             {
                 ?>
                 <input type='submit' name='THEELEGA_PXG_cleanup' value='Clean up exported products' />
                 <?php
             });
+            echo '</tr>';            
             ?>
         </table>
         <?php
     }
 
-    private function create_form_tr($callback)
+    private function create_form_td($colspan, $callback)
     {
         ?>
-        <tr>
-            <td class='THEELEGA_PXG_form_block'>
-                <form>
-                    <input type='hidden' name='page' value='<?= __CLASS__ ?>' />
-                    <?php $callback(); ?>
-                </form>
-            </td>
-        </tr>
+        <td class='THEELEGA_PXG_form_block' colspan='<?= $colspan ?>'>
+            <form>
+                <input type='hidden' name='page' value='<?= __CLASS__ ?>' />
+                <?php $callback(); ?>
+            </form>
+        </td>
         <?php
     }
 

@@ -358,7 +358,15 @@ class THEELEGA_PXG_db extends THEELEGA_db
         }
 
         $paths = array_unique($paths);
-        //array_map('wp_delete_file', $paths);
+        array_map('wp_delete_file', $paths);
+    }
+
+    public function set_mens_shirt_sizes($pids, $selectedSizes)
+    {
+        foreach ($pids as $p)
+        {
+            update_post_meta($p, 'men_shirt_sizes', $selectedSizes);
+        }
     }
 }
 ?>

@@ -1,5 +1,4 @@
 <?php
-
 class THEELEGA_PXG_form_table_preview extends THEELEGA_PXG_form_table_base
 {
     protected function get_products()
@@ -36,7 +35,7 @@ class THEELEGA_PXG_form_table_preview extends THEELEGA_PXG_form_table_base
                          'export_despite_errors': form.find('[name=THEELEGA_PXG_export_despite_errors]:checked').length ? 1 : 0,
                         };
                 });
-                
+
                 THEELEGA_common_post(url, nonce, 'THEELEGA_PXG_update_products', changes, $('.THEELEGA_PXG_status'));
             }
         </script>

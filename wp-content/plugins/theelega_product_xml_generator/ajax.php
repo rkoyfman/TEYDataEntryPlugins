@@ -79,4 +79,13 @@ add_action('wp_ajax_THEELEGA_PXG_form_upload_categories', function()
         die($e->getMessage());
     }
 });
+
+add_action('wp_ajax_THEELEGA_PXG_set_mens_shirt_sizes', function()
+{
+    $db = THEELEGA_PXG_db::get();
+    $data = theelega_get_ajax_request('THEELEGA_PXG_set_mens_shirt_sizes');
+    $db->set_mens_shirt_sizes($data['pids'], $data['selectedSizes']);
+
+    die(json_encode(['success' => true]));
+});
 ?>
