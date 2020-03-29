@@ -1,6 +1,6 @@
 <?php
 /**
- * These functions modify the columns on the standard product table.
+ * Obsolete.
  */
 
 

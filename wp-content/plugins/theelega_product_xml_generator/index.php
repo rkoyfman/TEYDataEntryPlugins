@@ -39,7 +39,7 @@ add_action('theelega_startup', function()
     require_once 'form_upload_categories.php';
     require_once 'form_mens_shirt_sizes.php';
 
-    require_once 'product_table_columns.php';
+    //require_once 'product_table_columns.php';
     
     new THEELEGA_PXG_form();
 });
